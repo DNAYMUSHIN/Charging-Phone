@@ -96,6 +96,7 @@ SimpleMesh make_cable(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, int segments, gl
     }
     return m;
 }
+
 SimpleMesh make_colored_room() {
     SimpleMesh m;
 
@@ -104,53 +105,55 @@ SimpleMesh make_colored_room() {
     glm::vec3 hs = size * 0.5f;
 
     glm::vec3 v[8] = {
-        center + glm::vec3(-hs.x, -hs.y, -hs.z),
-        center + glm::vec3(hs.x, -hs.y, -hs.z),
-        center + glm::vec3(hs.x,  hs.y, -hs.z),
-        center + glm::vec3(-hs.x,  hs.y, -hs.z),
+        center + glm::vec3(-hs.x, -hs.y, -hs.z), // 0
+        center + glm::vec3(hs.x, -hs.y, -hs.z),  // 1
+        center + glm::vec3(hs.x,  hs.y, -hs.z),  // 2
+        center + glm::vec3(-hs.x,  hs.y, -hs.z), // 3
 
-        center + glm::vec3(-hs.x, -hs.y,  hs.z),
-        center + glm::vec3(hs.x, -hs.y,  hs.z),
-        center + glm::vec3(hs.x,  hs.y,  hs.z),
-        center + glm::vec3(-hs.x,  hs.y,  hs.z)
+        center + glm::vec3(-hs.x, -hs.y,  hs.z), // 4
+        center + glm::vec3(hs.x, -hs.y,  hs.z),  // 5
+        center + glm::vec3(hs.x,  hs.y,  hs.z),  // 6
+        center + glm::vec3(-hs.x,  hs.y,  hs.z)  // 7
     };
 
-    GLuint idxs[] = {
-        0,1,2, 0,2,3,  // back
-        4,5,6, 4,6,7,  // front
-        0,4,7, 0,7,3,  // left
-        1,5,6, 1,6,2,  // right
-        3,2,6, 3,6,7,  // top
-        0,1,5, 0,5,4   // bottom
+    // правильные 4 угла каждой стены:
+    int faceVerts[6][4] = {
+        {0,1,2,3}, // back
+        {4,5,6,7}, // front
+        {0,4,7,3}, // left
+        {1,5,6,2}, // right
+        {3,2,6,7}, // top
+        {0,1,5,4}  // bottom
     };
 
+    // цвета граней
     glm::vec3 colors[6] = {
-        glm::vec3(0.8f, 0.8f, 1.0f),
-        glm::vec3(1.0f, 0.8f, 0.8f),
-        glm::vec3(0.8f, 1.0f, 0.8f),
-        glm::vec3(1.0f, 1.0f, 0.7f),
-        glm::vec3(0.9f, 0.9f, 0.9f),
-        glm::vec3(0.5f, 0.4f, 0.3f)
+        glm::vec3(0.94f, 0.90f, 0.75f),  // back     beige
+        glm::vec3(0.94f, 0.90f, 0.75f),  // front    beige
+        glm::vec3(0.94f, 0.90f, 0.82f),  // left     beige
+        glm::vec3(0.94f, 0.90f, 0.82f),  // right    beige
+        glm::vec3(1.0f, 0.97f, 0.70f),   // top      soft yellow
+        glm::vec3(0.45f, 0.30f, 0.18f)   // bottom   brown floor
     };
 
-    // Выделяем 24 вершины (для 6 граней × 4 вершины)
     for (int f = 0; f < 6; f++) {
-        int base = f * 4;
+        int base = m.verts.size();
 
-        // копируем вершины
-        m.verts.push_back(v[idxs[f * 6 + 0]]);
-        m.verts.push_back(v[idxs[f * 6 + 1]]);
-        m.verts.push_back(v[idxs[f * 6 + 2]]);
-        m.verts.push_back(v[idxs[f * 6 + 3]]);
+        // добавляем 4 угла текущей грани
+        m.verts.push_back(v[faceVerts[f][0]]);
+        m.verts.push_back(v[faceVerts[f][1]]);
+        m.verts.push_back(v[faceVerts[f][2]]);
+        m.verts.push_back(v[faceVerts[f][3]]);
 
-        // цвета этой грани
+        // цвет
         for (int i = 0; i < 4; i++)
             m.cols.push_back(colors[f]);
 
-        // индексы (локально)
+        // два треугольника
         m.inds.push_back(base + 0);
         m.inds.push_back(base + 1);
         m.inds.push_back(base + 2);
+
         m.inds.push_back(base + 0);
         m.inds.push_back(base + 2);
         m.inds.push_back(base + 3);
@@ -158,6 +161,8 @@ SimpleMesh make_colored_room() {
 
     return m;
 }
+
+
 
 int main()
 {
@@ -170,10 +175,57 @@ int main()
 
     // создаём модели
     Model room(window);
-    Model table(window);
     Model phone(window);
     Model plug(window);
     Model cable(window);
+    Model table(window);
+
+    
+    float table_hx = 2.0f * 0.5f;   // половина ширины столешницы (по X)
+    float table_hz = 1.0f * 0.5f;   // половина глубины столешницы (по Z)
+    float table_y_bottom = -1.2f - 0.1f; // нижняя грань столешницы (centerY - halfHeight)
+
+    float leg_width = 0.08f;
+    float leg_height = 0.7f;
+    float leg_half = leg_width * 0.5f;
+    float inset_margin = 0.02f; // дополнительный отступ внутрь (чтобы ножки не стояли впритык к краю)
+
+    // координаты центров ножек (внутрь от краёв)
+    float px = table_hx - leg_half - inset_margin; // по X
+    float pz = table_hz - leg_half - inset_margin; // по Z
+
+    auto make_leg = [&](float x, float z) {
+        // центр ножки: по Y ставим так, чтобы верхняя грань ножки совпадала с нижней гранью столешницы
+        float leg_center_y = table_y_bottom - leg_height * 0.5f;
+        return make_box(
+            glm::vec3(x, leg_center_y, z),     // центр ножки
+            glm::vec3(leg_width, leg_height, leg_width),
+            glm::vec3(0.35f, 0.18f, 0.08f)     // цвет дерева
+        );
+        };
+
+    SimpleMesh L1 = make_leg(+px, +pz);
+    SimpleMesh L2 = make_leg(+px, -pz);
+    SimpleMesh L3 = make_leg(-px, +pz);
+    SimpleMesh L4 = make_leg(-px, -pz);
+
+    Model leg1(window), leg2(window), leg3(window), leg4(window);
+    leg1.load_shaders("vs.glsl", "fs.glsl");
+    leg2.load_shaders("vs.glsl", "fs.glsl");
+    leg3.load_shaders("vs.glsl", "fs.glsl");
+    leg4.load_shaders("vs.glsl", "fs.glsl");
+
+    auto load_leg = [&](Model& M, SimpleMesh& S) {
+        M.load_coords(S.verts.data(), S.verts.size());
+        M.load_colors(S.cols.data(), S.cols.size());
+        M.load_indices(S.inds.data(), S.inds.size());
+        };
+
+    load_leg(leg1, L1);
+    load_leg(leg2, L2);
+    load_leg(leg3, L3);
+    load_leg(leg4, L4);
+
 
     // шейдеры для всех — один и тот же (fs использует u_time)
     room.load_shaders("vs.glsl", "fs.glsl");
@@ -216,9 +268,9 @@ int main()
     cable.load_indices(cableMesh.inds.data(), cableMesh.inds.size());
 
     // камера / управление
-    glm::vec3 camPos = glm::vec3(0.0f, 0.0f, 4.0f);
-    float camYaw = 180.0f; // градусы, смотрим в -z
-    float camPitch = 0.0f;
+    glm::vec3 camPos = glm::vec3(-2.0f, 0.0f, 3.0f);
+    float camYaw = 40.0f;
+    float camPitch = -10.0f;
 
     float lastTime = (float)glfwGetTime();
     while (!glfwWindowShouldClose(window)) {
@@ -278,10 +330,16 @@ int main()
 
         // Отрисовка: комната (не двигаем её - модельная матрица identity)
         renderModel(room, glm::translate(glm::mat4(1.0f), glm::vec3(0)));
-        renderModel(table, glm::mat4(1.0f));
         renderModel(phone, glm::mat4(1.0f));
         renderModel(plug, glm::mat4(1.0f));
         renderModel(cable, glm::mat4(1.0f));
+
+        renderModel(table, glm::mat4(1.0f));
+        renderModel(leg1, glm::mat4(1.0f));
+        renderModel(leg2, glm::mat4(1.0f));
+        renderModel(leg3, glm::mat4(1.0f));
+        renderModel(leg4, glm::mat4(1.0f));
+
 
         glfwPollEvents();
         glfwSwapBuffers(window);
