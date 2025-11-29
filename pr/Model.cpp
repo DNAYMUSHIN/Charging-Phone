@@ -58,6 +58,14 @@ void Model::load_coords(glm::vec3* verteces, size_t count) {
     glBindVertexArray(0);
 }
 
+void Model::load_uvs(glm::vec2* uvs, size_t count) {
+    glBindVertexArray(vao);
+    if (vbo_uvs == 0) glGenBuffers(1, &vbo_uvs);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_uvs);
+    glBufferData(GL_ARRAY_BUFFER, count * sizeof(glm::vec2), uvs, GL_STATIC_DRAW);
+    glBindVertexArray(0);
+}
+
 void Model::load_colors(glm::vec3* colors, size_t count) {
     glBindVertexArray(vao);
     if (vbo_colors == 0) glGenBuffers(1, &vbo_colors);
@@ -77,10 +85,11 @@ void Model::load_indices(GLuint* indices, size_t count) {
 
 void Model::render(GLuint mode) {
     glBindVertexArray(vao);
+    if (shader_programme) glUseProgram(shader_programme);  // активируй шейдер перед настройкой атрибутов
 
-    // перед рендером надо назначить атрибуты (если есть программа)
     GLint posLoc = 0;
     GLint colLoc = 1;
+    GLint uvLoc = 2;
 
     if (vbo_coords) {
         glBindBuffer(GL_ARRAY_BUFFER, vbo_coords);
@@ -92,6 +101,12 @@ void Model::render(GLuint mode) {
         glEnableVertexAttribArray(colLoc);
         glVertexAttribPointer(colLoc, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
     }
+    if (vbo_uvs) {  // теперь uvLoc будет виден
+        glBindBuffer(GL_ARRAY_BUFFER, vbo_uvs);
+        glEnableVertexAttribArray(uvLoc);
+        glVertexAttribPointer(uvLoc, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
+    }
+
     if (ibo) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
         glDrawElements(mode, (GLsizei)indices_count, GL_UNSIGNED_INT, 0);
@@ -103,6 +118,7 @@ void Model::render(GLuint mode) {
     // выключим атрибуты
     if (vbo_coords) glDisableVertexAttribArray(posLoc);
     if (vbo_colors) glDisableVertexAttribArray(colLoc);
+    if (vbo_uvs) glDisableVertexAttribArray(uvLoc);
 
     glBindVertexArray(0);
 }

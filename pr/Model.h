@@ -43,6 +43,12 @@ public:
 	/// <param name="colors">Массив цветов.</param> 
 	/// <param name="count">Размер массива.</param> 
 	void load_colors(glm::vec3* colors, size_t count);
+
+
+
+	void load_uvs(glm::vec2*, size_t);
+	GLuint vbo_uvs = 0;    // добавь это
+
 	/// <summary> 
 	/// Метод для загрузки массива индексов. 
 	/// </summary> 

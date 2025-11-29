@@ -41,5 +41,7 @@
     <None Include="fs.glsl" />
     <None Include="fsCable.glsl" />
     <None Include="packages.config" />
+    <None Include="fs_phone.glsl" />
+    <None Include="vs_phone.glsl" />
   </ItemGroup>
 </Project>

@@ -10,6 +10,8 @@
 #include <vector>
 #include <cmath>
 #include <iostream>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb-master/stb_image.h"
 
 int WinWidth;
 int WinHeight;
@@ -17,6 +19,7 @@ int WinHeight;
 struct SimpleMesh {
     std::vector<glm::vec3> verts;
     std::vector<glm::vec3> cols;
+    std::vector<glm::vec2> uvs;
     std::vector<GLuint> inds;
 };
 
@@ -59,6 +62,72 @@ SimpleMesh make_box(glm::vec3 center, glm::vec3 size, glm::vec3 color, bool inve
             std::swap(m.inds[i + 1], m.inds[i + 2]);
         }
     }
+    return m;
+}
+
+SimpleMesh make_textured_box(glm::vec3 center, glm::vec3 size) {
+    glm::vec3 hs = size * 0.5f;
+    glm::vec3 v[8] = {
+        center + glm::vec3(-hs.x, -hs.y, -hs.z), // 0
+        center + glm::vec3(hs.x, -hs.y, -hs.z),  // 1
+        center + glm::vec3(hs.x,  hs.y, -hs.z),  // 2
+        center + glm::vec3(-hs.x,  hs.y, -hs.z), // 3
+        center + glm::vec3(-hs.x, -hs.y,  hs.z), // 4
+        center + glm::vec3(hs.x, -hs.y,  hs.z),  // 5
+        center + glm::vec3(hs.x,  hs.y,  hs.z),  // 6
+        center + glm::vec3(-hs.x,  hs.y,  hs.z)  // 7
+    };
+
+    SimpleMesh m;
+
+    // UV-координаты для каждой грани (0,0) - (1,1)
+    // индексы граней как в твоем коде
+    int faceVerts[6][4] = {
+        {0,1,2,3}, // back
+        {4,5,6,7}, // front  
+        {0,4,7,3}, // left
+        {1,5,6,2}, // right
+        {3,2,6,7}, // top
+        {0,1,5,4}  // bottom
+    };
+
+    // UV-координаты для каждой грани (одинаковые для всех граней)
+    glm::vec2 faceUVs[4] = {
+        glm::vec2(0.0f, 0.0f),  // нижний левый
+        glm::vec2(1.0f, 0.0f),  // нижний правый  
+        glm::vec2(1.0f, 1.0f),  // верхний правый
+        glm::vec2(0.0f, 1.0f)   // верхний левый
+    };
+
+    for (int f = 0; f < 6; f++) {
+        int base = m.verts.size();
+
+        // добавляем 4 вершины грани
+        m.verts.push_back(v[faceVerts[f][0]]);
+        m.verts.push_back(v[faceVerts[f][1]]);
+        m.verts.push_back(v[faceVerts[f][2]]);
+        m.verts.push_back(v[faceVerts[f][3]]);
+
+        // добавляем UV-координаты
+        m.uvs.push_back(faceUVs[0]);
+        m.uvs.push_back(faceUVs[1]);
+        m.uvs.push_back(faceUVs[2]);
+        m.uvs.push_back(faceUVs[3]);
+
+        // цвета (если нужно в шейдере) - можно сделать серым или белым
+        for (int i = 0; i < 4; i++)
+            m.cols.push_back(glm::vec3(1.0f));  // белый цвет (текстура перекроет)
+
+        // индексы треугольников
+        m.inds.push_back(base + 0);
+        m.inds.push_back(base + 1);
+        m.inds.push_back(base + 2);
+
+        m.inds.push_back(base + 0);
+        m.inds.push_back(base + 2);
+        m.inds.push_back(base + 3);
+    }
+
     return m;
 }
 
@@ -173,6 +242,27 @@ int main()
     glDepthFunc(GL_LESS);
     glClearColor(0.85f, 0.9f, 0.95f, 1.0f);
 
+
+    // В начале main() после инициализации OpenGL:
+    GLuint phone_texture_id;
+
+    // Загрузка текстуры
+    glGenTextures(1, &phone_texture_id);
+    glBindTexture(GL_TEXTURE_2D, phone_texture_id);
+
+    // Загрузка изображения (нужна библиотека SOIL или stb_image)
+    int width, height, channels;
+    unsigned char* image_data = stbi_load("phone.png", &width, &height, &channels, 3);
+    if (image_data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image_data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        stbi_image_free(image_data);
+    }
+    else {
+        std::cout << "Failed to load texture" << std::endl;
+    }
+
+
     // создаём модели
     Model room(window);
     Model phone(window);
@@ -230,7 +320,7 @@ int main()
     // шейдеры для всех — один и тот же (fs использует u_time)
     room.load_shaders("vs.glsl", "fs.glsl");
     table.load_shaders("vs.glsl", "fs.glsl");
-    phone.load_shaders("vs.glsl", "fs.glsl");
+    phone.load_shaders("vs_phone.glsl", "fs_phone.glsl");
     plug.load_shaders("vs.glsl", "fs.glsl");
     cable.load_shaders("vs.glsl", "fsCable.glsl");
 
@@ -247,9 +337,10 @@ int main()
     table.load_indices(tableMesh.inds.data(), tableMesh.inds.size());
 
     // телефон — тонкая коробка на столе (смещаем немного)
-    SimpleMesh phoneMesh = make_box(glm::vec3(0.3f, -1.09f, 0.0f), glm::vec3(0.2f, 0.02f, 0.12f), glm::vec3(0.05f, 0.05f, 0.05f));
+    SimpleMesh phoneMesh = make_textured_box(glm::vec3(0.3f, -1.09f, 0.0f), glm::vec3(0.2f, 0.02f, 0.12f));
     phone.load_coords(phoneMesh.verts.data(), phoneMesh.verts.size());
     phone.load_colors(phoneMesh.cols.data(), phoneMesh.cols.size());
+    phone.load_uvs(phoneMesh.uvs.data(), phoneMesh.uvs.size());  // добавь эту строку!
     phone.load_indices(phoneMesh.inds.data(), phoneMesh.inds.size());
 
     // вилка в стене (маленький бокс на стене)
@@ -325,8 +416,18 @@ int main()
             if (id2 >= 0) glUniformMatrix4fv(id2, 1, GL_FALSE, glm::value_ptr(modelMat));
             GLint tid = glGetUniformLocation(prog, "u_time");
             if (tid >= 0) glUniform1f(tid, now);
+
+
+            // Если это телефон - привяжи текстуру:
+            if (&m == &phone) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, phone_texture_id);
+                GLint texLoc = glGetUniformLocation(prog, "tex");
+                if (texLoc >= 0) glUniform1i(texLoc, 0);
+            }
+
             m.render(GL_TRIANGLES);
-            };
+        };
 
         // Отрисовка: комната (не двигаем её - модельная матрица identity)
         renderModel(room, glm::translate(glm::mat4(1.0f), glm::vec3(0)));
