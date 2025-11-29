@@ -269,53 +269,55 @@ int main()
     Model plug(window);
     Model cable(window);
     Model table(window);
-
+    glm::vec3 table_pos(0.0f, -0.6f, 0.0f);  // начальная позиция стола
     
+    // Убери старые вычисления px, pz из глобальной области и сделай так:
     float table_hx = 2.0f * 0.5f;   // половина ширины столешницы (по X)
     float table_hz = 1.0f * 0.5f;   // половина глубины столешницы (по Z)
-    float table_y_bottom = -1.2f - 0.1f; // нижняя грань столешницы (centerY - halfHeight)
+    float table_y_bottom = -0.6f - 0.1f; // Y нижней грани столешницы (Y стола - половина толщины)
 
     float leg_width = 0.08f;
     float leg_height = 0.7f;
     float leg_half = leg_width * 0.5f;
-    float inset_margin = 0.02f; // дополнительный отступ внутрь (чтобы ножки не стояли впритык к краю)
+    float inset_margin = 0.02f; // отступ от края
 
-    // координаты центров ножек (внутрь от краёв)
-    float px = table_hx - leg_half - inset_margin; // по X
-    float pz = table_hz - leg_half - inset_margin; // по Z
+    // Правильные смещения ножек от центра стола:
+    float px = table_hx - leg_half - inset_margin; // от центра до края стола минус половина ножки минус отступ
+    float pz = table_hz - leg_half - inset_margin;
+
+    // Y-координата центра ножки (такая же для всех):
+    float leg_center_y = table_y_bottom - leg_height * 0.5f; // нижняя грань стола - половина высоты ножки
 
     auto make_leg = [&](float x, float z) {
-        // центр ножки: по Y ставим так, чтобы верхняя грань ножки совпадала с нижней гранью столешницы
-        float leg_center_y = table_y_bottom - leg_height * 0.5f;
         return make_box(
-            glm::vec3(x, leg_center_y, z),     // центр ножки
+            glm::vec3(x, leg_center_y, z),     // позиция ножки
             glm::vec3(leg_width, leg_height, leg_width),
-            glm::vec3(0.35f, 0.18f, 0.08f)     // цвет дерева
+            glm::vec3(0.35f, 0.18f, 0.08f)
         );
         };
 
-    SimpleMesh L1 = make_leg(+px, +pz);
-    SimpleMesh L2 = make_leg(+px, -pz);
-    SimpleMesh L3 = make_leg(-px, +pz);
-    SimpleMesh L4 = make_leg(-px, -pz);
+    // Создаем ножки с начальной позицией стола (0, -0.6, 0):
+    SimpleMesh L1 = make_leg(0.0f + px, 0.0f + pz);  // правая передняя
+    SimpleMesh L2 = make_leg(0.0f + px, 0.0f - pz);  // правая задняя
+    SimpleMesh L3 = make_leg(0.0f - px, 0.0f + pz);  // левая передняя
+    SimpleMesh L4 = make_leg(0.0f - px, 0.0f - pz);  // левая задняя
 
-    Model leg1(window), leg2(window), leg3(window), leg4(window);
-    leg1.load_shaders("vs.glsl", "fs.glsl");
-    leg2.load_shaders("vs.glsl", "fs.glsl");
-    leg3.load_shaders("vs.glsl", "fs.glsl");
-    leg4.load_shaders("vs.glsl", "fs.glsl");
-
-    auto load_leg = [&](Model& M, SimpleMesh& S) {
-        M.load_coords(S.verts.data(), S.verts.size());
-        M.load_colors(S.cols.data(), S.cols.size());
-        M.load_indices(S.inds.data(), S.inds.size());
-        };
-
-    load_leg(leg1, L1);
-    load_leg(leg2, L2);
-    load_leg(leg3, L3);
-    load_leg(leg4, L4);
-
+    Model leg1(window);
+    leg1.load_coords(L1.verts.data(), L1.verts.size());
+    leg1.load_colors(L1.cols.data(), L1.cols.size());
+    leg1.load_indices(L1.inds.data(), L1.inds.size());
+    Model leg2(window);
+    leg2.load_coords(L2.verts.data(), L2.verts.size());
+    leg2.load_colors(L2.cols.data(), L2.cols.size());
+    leg2.load_indices(L2.inds.data(), L2.inds.size());
+    Model leg3(window);
+    leg3.load_coords(L3.verts.data(), L3.verts.size());
+    leg3.load_colors(L3.cols.data(), L3.cols.size());
+    leg3.load_indices(L3.inds.data(), L3.inds.size());
+    Model leg4(window);
+    leg4.load_coords(L4.verts.data(), L4.verts.size());
+    leg4.load_colors(L4.cols.data(), L4.cols.size());
+    leg4.load_indices(L4.inds.data(), L4.inds.size());
 
     // шейдеры для всех — один и тот же (fs использует u_time)
     room.load_shaders("vs.glsl", "fs.glsl");
@@ -331,17 +333,28 @@ int main()
     room.load_indices(roomMesh.inds.data(), roomMesh.inds.size());
 
     // стол — коробка
-    SimpleMesh tableMesh = make_box(glm::vec3(0.0f, -1.2f, 0.0f), glm::vec3(2.0f, 0.2f, 1.0f), glm::vec3(0.6f, 0.3f, 0.1f));
+    SimpleMesh tableMesh = make_box(table_pos, glm::vec3(2.0f, 0.2f, 1.0f), glm::vec3(0.6f, 0.3f, 0.1f));
     table.load_coords(tableMesh.verts.data(), tableMesh.verts.size());
     table.load_colors(tableMesh.cols.data(), tableMesh.cols.size());
     table.load_indices(tableMesh.inds.data(), tableMesh.inds.size());
 
     // телефон — тонкая коробка на столе (смещаем немного)
-    SimpleMesh phoneMesh = make_textured_box(glm::vec3(0.3f, -1.09f, 0.0f), glm::vec3(0.2f, 0.02f, 0.12f));
+    glm::vec3 phone_pos = glm::vec3(0.3f, -1.09f, 0.0f);
+
+    glm::vec3 phone_local_offset = glm::vec3(-0.3f, -1.09f, 0.0f);
+
+    SimpleMesh phoneMesh = make_textured_box(phone_pos, glm::vec3(0.2f, 0.02f, 0.12f));
     phone.load_coords(phoneMesh.verts.data(), phoneMesh.verts.size());
     phone.load_colors(phoneMesh.cols.data(), phoneMesh.cols.size());
     phone.load_uvs(phoneMesh.uvs.data(), phoneMesh.uvs.size());  // добавь эту строку!
     phone.load_indices(phoneMesh.inds.data(), phoneMesh.inds.size());
+
+    float phone_half_x = 0.1f;   // половина ширины телефона
+    float phone_half_z = 0.06f;  // половина глубины телефона
+    float max_table_x = table_hx - phone_local_offset.x - phone_half_x;   // когда правый край телефона упирается в правый край стола
+    float min_table_x = -table_hx - phone_local_offset.x + phone_half_x;  // когда левый край телефона упирается в левый край стола
+    float max_table_z = table_hz - phone_local_offset.z - phone_half_z;
+    float min_table_z = -table_hz - phone_local_offset.z + phone_half_z;
 
     // вилка в стене (маленький бокс на стене)
     SimpleMesh plugMesh = make_box(glm::vec3(2.98f, -0.2f, 0.0f), glm::vec3(0.08f, 0.06f, 0.04f), glm::vec3(0.15f, 0.15f, 0.15f)); 
@@ -384,6 +397,12 @@ int main()
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camPos += right * speed * dt;
         if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) camPos.y += speed * dt;
         if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) camPos.y -= speed * dt;
+
+        if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) table_pos.z += speed * dt;  // вперед (по Z)
+        if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS) table_pos.z -= speed * dt;  // назад
+        if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS) table_pos.x -= speed * dt;  // влево (по X)
+        if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) table_pos.x += speed * dt;  // вправо
+
 
         if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) camYaw += 60.0f * dt;
         if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) camYaw -= 60.0f * dt;
@@ -435,12 +454,22 @@ int main()
         renderModel(plug, glm::mat4(1.0f));
         renderModel(cable, glm::mat4(1.0f));
 
-        renderModel(table, glm::mat4(1.0f));
-        renderModel(leg1, glm::mat4(1.0f));
-        renderModel(leg2, glm::mat4(1.0f));
-        renderModel(leg3, glm::mat4(1.0f));
-        renderModel(leg4, glm::mat4(1.0f));
+        if (table_pos.x > max_table_x) table_pos.x = max_table_x;
+        if (table_pos.x < min_table_x) table_pos.x = min_table_x;
+        if (table_pos.z > max_table_z) table_pos.z = max_table_z;
+        if (table_pos.z < min_table_z) table_pos.z = min_table_z;
 
+        renderModel(table, glm::translate(glm::mat4(1.0f), table_pos));
+
+        // Для ножек используем ту же логику - смещение относительно позиции стола:
+        float px = table_hx - leg_half - inset_margin;
+        float pz = table_hz - leg_half - inset_margin;
+        float leg_center_y = table_pos.y - 0.1f - leg_height * 0.5f;
+
+        renderModel(leg1, glm::translate(glm::mat4(1.0f), glm::vec3(table_pos.x + px, leg_center_y, table_pos.z + pz)));
+        renderModel(leg2, glm::translate(glm::mat4(1.0f), glm::vec3(table_pos.x + px, leg_center_y, table_pos.z - pz)));
+        renderModel(leg3, glm::translate(glm::mat4(1.0f), glm::vec3(table_pos.x - px, leg_center_y, table_pos.z + pz)));
+        renderModel(leg4, glm::translate(glm::mat4(1.0f), glm::vec3(table_pos.x - px, leg_center_y, table_pos.z - pz)));
 
         glfwPollEvents();
         glfwSwapBuffers(window);
