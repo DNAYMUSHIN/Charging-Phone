@@ -75,7 +75,7 @@ SimpleMesh make_cable(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, int segments, gl
         // нормаль в плоскости XZ
         glm::vec3 up = glm::vec3(0, 1, 0);
         glm::vec3 bit = glm::normalize(glm::cross(tangent, up));
-        float width = 0.03f;
+        float width = 0.015f;
         glm::vec3 a = p - bit * width;
         glm::vec3 b = p + bit * width;
         m.verts.push_back(a);
@@ -247,21 +247,21 @@ int main()
     table.load_indices(tableMesh.inds.data(), tableMesh.inds.size());
 
     // телефон — тонкая коробка на столе (смещаем немного)
-    SimpleMesh phoneMesh = make_box(glm::vec3(0.3f, -1.05f, 0.0f), glm::vec3(0.2f, 0.02f, 0.12f), glm::vec3(0.05f, 0.05f, 0.05f));
+    SimpleMesh phoneMesh = make_box(glm::vec3(0.3f, -1.09f, 0.0f), glm::vec3(0.2f, 0.02f, 0.12f), glm::vec3(0.05f, 0.05f, 0.05f));
     phone.load_coords(phoneMesh.verts.data(), phoneMesh.verts.size());
     phone.load_colors(phoneMesh.cols.data(), phoneMesh.cols.size());
     phone.load_indices(phoneMesh.inds.data(), phoneMesh.inds.size());
 
     // вилка в стене (маленький бокс на стене)
-    SimpleMesh plugMesh = make_box(glm::vec3(2.98f, -0.2f, 0.8f), glm::vec3(0.08f, 0.06f, 0.04f), glm::vec3(0.15f, 0.15f, 0.15f));
+    SimpleMesh plugMesh = make_box(glm::vec3(2.98f, -0.2f, 0.0f), glm::vec3(0.08f, 0.06f, 0.04f), glm::vec3(0.15f, 0.15f, 0.15f)); 
     plug.load_coords(plugMesh.verts.data(), plugMesh.verts.size());
     plug.load_colors(plugMesh.cols.data(), plugMesh.cols.size());
     plug.load_indices(plugMesh.inds.data(), plugMesh.inds.size());
 
     // кабель: от вилки к телефону; L-образная кривая (p0->p1->p2)
-    glm::vec3 p0 = glm::vec3(2.92f, -0.25f, 0.82f);
-    glm::vec3 p1 = glm::vec3(1.2f, -0.6f, 0.9f);
-    glm::vec3 p2 = glm::vec3(0.38f, -1.05f, 0.0f);
+    glm::vec3 p0 = glm::vec3(2.96f, -0.2f, 0.0f);   // точка подключения к розетке (чуть внутрь)
+    glm::vec3 p1 = glm::vec3(1.8f, -1.0f, 0.0f);    // промежуточная точка для дуги
+    glm::vec3 p2 = glm::vec3(0.38f, -1.1f, 0.0f);   // точка подключения к нижней части телефона
     SimpleMesh cableMesh = make_cable(p0, p1, p2, 48, glm::vec3(0.1f, 0.1f, 0.1f));
     cable.load_coords(cableMesh.verts.data(), cableMesh.verts.size());
     cable.load_colors(cableMesh.cols.data(), cableMesh.cols.size());
